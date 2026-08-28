@@ -16,9 +16,21 @@ func NewRepository(db *sql.DB) Repository {
 
 func (r *repository) Get(ctx context.Context, tokenHash string) (*Session, error) {
 	query := `
-		SELECT token_hash, user_id, csrf_token_hash, created_at, expires_at
-		FROM sessions
-		WHERE token_hash = $1 AND expires_at > NOW()
+		SELECT
+			s.token_hash,
+			s.user_id,
+			s.csrf_token_hash,
+			s.created_at,
+			s.expires_at,
+			u.id,
+			u.username,
+			u.email,
+			u.is_active
+		FROM sessions s
+		JOIN users u ON u.id = s.user_id
+		WHERE s.token_hash = $1
+			AND s.expires_at > NOW()
+			AND u.is_active = TRUE
 	`
 
 	sess := &Session{}
@@ -28,6 +40,10 @@ func (r *repository) Get(ctx context.Context, tokenHash string) (*Session, error
 		&sess.CSRFTokenHash,
 		&sess.CreatedAt,
 		&sess.ExpiresAt,
+		&sess.User.ID,
+		&sess.User.Username,
+		&sess.User.Email,
+		&sess.User.IsActive,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrSessionNotFound

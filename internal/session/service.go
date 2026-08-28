@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 )
 
 var (
@@ -18,37 +19,35 @@ func NewService(cache SessionCache, repo Repository) *SessionService {
 func (s *SessionService) Get(ctx context.Context, tokenHash string) (*Session, error) {
 	session, err := s.cache.Get(ctx, tokenHash)
 	if err == nil {
-		log.Println("cache hit")
-		return session, nil
+		if session.ExpiresAt.After(time.Now()) {
+			return session, nil
+		}
+
+		if err := s.cache.Delete(ctx, tokenHash); err != nil {
+			log.Printf("cache delete: %v", err)
+		}
+		return nil, ErrSessionNotFound
 	}
 
-	switch {
-	case errors.Is(err, ErrCacheMiss):
-		log.Println(ErrCacheMiss.Error())
-	default:
+	if !errors.Is(err, ErrCacheMiss) {
 		log.Printf("cache error: %v\n", err)
 	}
 
 	session, err = s.repo.Get(ctx, tokenHash)
-	if err == nil {
-		log.Println("database hit")
-		if err = s.cache.Set(ctx, session); err != nil {
-			log.Printf("could not populate cache: %v\n", err)
-		}
-
-		return session, nil
+	if err != nil {
+		return nil, err
 	}
 
-	log.Printf("db error: %v\n", err)
-	return nil, err
+	if err = s.cache.Set(ctx, session); err != nil {
+		log.Printf("could not populate cache: %v\n", err)
+	}
+
+	return session, nil
 }
 
 func (s *SessionService) Create(ctx context.Context, session *Session) error {
 	if err := s.repo.Create(ctx, session); err != nil {
 		return err
-	}
-	if err := s.cache.Set(ctx, session); err != nil {
-		log.Printf("could not populate cache: %v\n", err)
 	}
 	return nil
 }

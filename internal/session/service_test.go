@@ -5,6 +5,7 @@ import (
 	"errors"
 	"slices"
 	"testing"
+	"time"
 )
 
 type serviceCall struct {
@@ -69,7 +70,7 @@ func assertCalls(t *testing.T, got, want callRecorder) {
 
 func TestSessionServiceGet(t *testing.T) {
 	ctx := context.Background()
-	session := &Session{TokenHash: "token-hash"}
+	session := &Session{TokenHash: "token-hash", ExpiresAt: time.Now().Add(time.Hour)}
 
 	t.Run("cache hit skips store", func(t *testing.T) {
 		var calls callRecorder
@@ -82,6 +83,23 @@ func TestSessionServiceGet(t *testing.T) {
 		}
 		assertCalls(t, calls, callRecorder{
 			{method: "cache.Get", token: session.TokenHash},
+		})
+	})
+
+	t.Run("cache hit ignores expired session", func(t *testing.T) {
+		var calls callRecorder
+		expiredSession := &Session{TokenHash: "token-hash", ExpiresAt: time.Now().Add(-time.Second)}
+
+		cache := &cacheSpy{calls: &calls, session: expiredSession}
+		store := &storeSpy{calls: &calls}
+		got, err := (&SessionService{cache: cache, repo: store}).Get(ctx, expiredSession.TokenHash)
+
+		if !errors.Is(err, ErrSessionNotFound) {
+			t.Fatalf("Get() = (%p, %v), want (nil, %v)", got, err, ErrSessionNotFound)
+		}
+		assertCalls(t, calls, callRecorder{
+			{method: "cache.Get", token: session.TokenHash},
+			{method: "cache.Delete", token: session.TokenHash},
 		})
 	})
 
@@ -134,24 +152,19 @@ func TestSessionServiceCreate(t *testing.T) {
 	for _, tt := range []struct {
 		name     string
 		storeErr error
-		cacheErr error
 	}{
-		{name: "cache failure is best effort", cacheErr: errors.New("cache failed")},
+		{name: "success"},
 		{name: "store failure stops", storeErr: errors.New("store failed")},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			var calls callRecorder
-			cache := &cacheSpy{calls: &calls, setErr: tt.cacheErr}
 			store := &storeSpy{calls: &calls, createErr: tt.storeErr}
-			err := (&SessionService{cache: cache, repo: store}).Create(ctx, session)
+			err := (&SessionService{repo: store}).Create(ctx, session)
 
 			if !errors.Is(err, tt.storeErr) {
 				t.Fatalf("Create() error = %v, want %v", err, tt.storeErr)
 			}
 			wantCalls := callRecorder{{method: "store.Create", session: session}}
-			if tt.storeErr == nil {
-				wantCalls = append(wantCalls, serviceCall{method: "cache.Set", session: session})
-			}
 			assertCalls(t, calls, wantCalls)
 		})
 	}
