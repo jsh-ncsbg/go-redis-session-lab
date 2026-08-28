@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/redis-session-lab/internal/db"
 	"github.com/redis-session-lab/internal/session"
@@ -40,7 +41,7 @@ func main() {
 		}
 
 		fmt.Println("redis is available")
-		cacheDB = session.NewRedisSessionCache(rdb, cfg.RedisPrefix)
+		cacheDB = session.NewRedisSessionCache(rdb, 5*time.Minute, cfg.RedisPrefix)
 	default:
 		log.Fatalf("unsupported SESSION_CACHE value: %q", cfg.SessionCache)
 	}

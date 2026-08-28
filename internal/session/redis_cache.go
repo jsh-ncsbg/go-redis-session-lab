@@ -11,12 +11,14 @@ import (
 
 type RedisSessionCache struct {
 	client *redis.Client
+	ttl    time.Duration
 	prefix string
 }
 
-func NewRedisSessionCache(client *redis.Client, prefix string) SessionCache {
+func NewRedisSessionCache(client *redis.Client, ttl time.Duration, prefix string) SessionCache {
 	return &RedisSessionCache{
 		client: client,
+		ttl:    ttl,
 		prefix: prefix,
 	}
 }
@@ -49,10 +51,12 @@ func (c *RedisSessionCache) Get(ctx context.Context, tokenHash string) (*Session
 
 func (c *RedisSessionCache) Set(ctx context.Context, session *Session) error {
 	key := c.key(session.TokenHash)
-	ttl := time.Until(session.ExpiresAt)
-	if ttl <= 0 {
+
+	sessionTTL := time.Until(session.ExpiresAt)
+	if sessionTTL <= 0 {
 		return c.Delete(ctx, session.TokenHash)
 	}
+	ttl := min(c.ttl, sessionTTL)
 
 	val, err := json.Marshal(session)
 	if err != nil {
