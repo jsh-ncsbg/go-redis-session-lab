@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"context"
@@ -12,6 +12,13 @@ import (
 type RedisSessionCache struct {
 	client *redis.Client
 	prefix string
+}
+
+func NewRedisSessionCache(client *redis.Client, prefix string) SessionCache {
+	return &RedisSessionCache{
+		client: client,
+		prefix: prefix,
+	}
 }
 
 func (c *RedisSessionCache) key(tokenHash string) string {

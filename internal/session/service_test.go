@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"context"
@@ -40,9 +40,9 @@ func (s *cacheSpy) Delete(_ context.Context, token string) error {
 }
 
 type storeSpy struct {
-	calls                     *callRecorder
-	session                   *Session
-	getErr, putErr, deleteErr error
+	calls                        *callRecorder
+	session                      *Session
+	getErr, createErr, deleteErr error
 }
 
 func (s *storeSpy) Get(_ context.Context, token string) (*Session, error) {
@@ -50,9 +50,9 @@ func (s *storeSpy) Get(_ context.Context, token string) (*Session, error) {
 	return s.session, s.getErr
 }
 
-func (s *storeSpy) Put(_ context.Context, session *Session) error {
-	s.calls.record(serviceCall{method: "store.Put", session: session})
-	return s.putErr
+func (s *storeSpy) Create(_ context.Context, session *Session) error {
+	s.calls.record(serviceCall{method: "store.Create", session: session})
+	return s.createErr
 }
 
 func (s *storeSpy) Delete(_ context.Context, token string) error {
@@ -142,13 +142,13 @@ func TestSessionServiceCreate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var calls callRecorder
 			cache := &cacheSpy{calls: &calls, setErr: tt.cacheErr}
-			store := &storeSpy{calls: &calls, putErr: tt.storeErr}
+			store := &storeSpy{calls: &calls, createErr: tt.storeErr}
 			err := (&SessionService{cache: cache, repo: store}).Create(ctx, session)
 
 			if !errors.Is(err, tt.storeErr) {
 				t.Fatalf("Create() error = %v, want %v", err, tt.storeErr)
 			}
-			wantCalls := callRecorder{{method: "store.Put", session: session}}
+			wantCalls := callRecorder{{method: "store.Create", session: session}}
 			if tt.storeErr == nil {
 				wantCalls = append(wantCalls, serviceCall{method: "cache.Set", session: session})
 			}

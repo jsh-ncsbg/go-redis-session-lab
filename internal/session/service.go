@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"context"
@@ -6,9 +6,13 @@ import (
 	"log"
 )
 
-type SessionService struct {
-	cache SessionCache
-	repo  SessionStore
+var (
+	ErrSessionNotFound = errors.New("session not found")
+	ErrCacheMiss       = errors.New("cache miss")
+)
+
+func NewService(cache SessionCache, repo Repository) *SessionService {
+	return &SessionService{cache: cache, repo: repo}
 }
 
 func (s *SessionService) Get(ctx context.Context, tokenHash string) (*Session, error) {
@@ -29,7 +33,7 @@ func (s *SessionService) Get(ctx context.Context, tokenHash string) (*Session, e
 	if err == nil {
 		log.Println("database hit")
 		if err = s.cache.Set(ctx, session); err != nil {
-			log.Printf("cache err: could not populate cache, %v\n", err)
+			log.Printf("could not populate cache: %v\n", err)
 		}
 
 		return session, nil
@@ -40,11 +44,11 @@ func (s *SessionService) Get(ctx context.Context, tokenHash string) (*Session, e
 }
 
 func (s *SessionService) Create(ctx context.Context, session *Session) error {
-	if err := s.repo.Put(ctx, session); err != nil {
+	if err := s.repo.Create(ctx, session); err != nil {
 		return err
 	}
 	if err := s.cache.Set(ctx, session); err != nil {
-		log.Printf("cache err: could not populate cache, %v\n", err)
+		log.Printf("could not populate cache: %v\n", err)
 	}
 	return nil
 }
