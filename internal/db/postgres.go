@@ -6,13 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 var ErrMissingPostgresDSN = errors.New("postgres DSN is required")
 
-func NewPostgres(ctx context.Context, dsn string, maxOpenConns int) (*sql.DB, error) {
+func NewPostgres(ctx context.Context, dsn string, maxOpenConns, maxIdleConns int, connMaxIdleTime time.Duration) (*sql.DB, error) {
 	if strings.TrimSpace(dsn) == "" {
 		return nil, ErrMissingPostgresDSN
 	}
@@ -23,6 +24,8 @@ func NewPostgres(ctx context.Context, dsn string, maxOpenConns int) (*sql.DB, er
 	}
 
 	client.SetMaxOpenConns(maxOpenConns)
+	client.SetMaxIdleConns(maxIdleConns)
+	client.SetConnMaxIdleTime(connMaxIdleTime)
 
 	if err := client.PingContext(ctx); err != nil {
 		_ = client.Close()

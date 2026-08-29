@@ -17,7 +17,7 @@ func main() {
 	ctx := context.Background()
 	cfg := initConfig()
 
-	pg, err := db.NewPostgres(ctx, cfg.DBURL, cfg.DBMaxOpenConns)
+	pg, err := db.NewPostgres(ctx, cfg.DBURL, cfg.DBMaxOpenConns, cfg.DBMaxIdleConns, cfg.DBConnMaxIdleTime)
 	if err != nil {
 		log.Fatal(fmt.Errorf("db setup: %w", err))
 	}
