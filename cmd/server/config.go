@@ -9,7 +9,8 @@ import (
 )
 
 type Config struct {
-	DBURL string
+	DBURL          string
+	DBMaxOpenConns int
 
 	RedisAddr     string
 	RedisPassword string
@@ -23,7 +24,8 @@ func initConfig() *Config {
 	_ = godotenv.Load()
 
 	return &Config{
-		DBURL: GetEnvString("DB_URL", "postgres://postgres:postgres@localhost:5432/rsl?sslmode=disable"),
+		DBURL:          GetEnvString("DB_URL", "postgres://postgres:postgres@localhost:5432/rsl?sslmode=disable"),
+		DBMaxOpenConns: GetEnvInt("DB_MAX_OPEN_CONNS", 30),
 
 		RedisAddr:     GetEnvString("REDIS_ADDR", "localhost:6379"),
 		RedisPassword: GetEnvString("REDIS_PASSWORD", ""),

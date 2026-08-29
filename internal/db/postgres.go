@@ -12,7 +12,7 @@ import (
 
 var ErrMissingPostgresDSN = errors.New("postgres DSN is required")
 
-func NewPostgres(ctx context.Context, dsn string) (*sql.DB, error) {
+func NewPostgres(ctx context.Context, dsn string, maxOpenConns int) (*sql.DB, error) {
 	if strings.TrimSpace(dsn) == "" {
 		return nil, ErrMissingPostgresDSN
 	}
@@ -21,6 +21,8 @@ func NewPostgres(ctx context.Context, dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open postgres: %w", err)
 	}
+
+	client.SetMaxOpenConns(maxOpenConns)
 
 	if err := client.PingContext(ctx); err != nil {
 		_ = client.Close()
