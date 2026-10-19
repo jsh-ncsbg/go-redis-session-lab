@@ -2,7 +2,7 @@
 
 \if :{?benchmark_count}
 \else
-\set benchmark_count 10000
+\set benchmark_count 10000000
 \endif
 
 BEGIN;
