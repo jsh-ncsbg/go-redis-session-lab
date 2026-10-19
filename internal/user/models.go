@@ -8,6 +8,7 @@ import (
 
 var (
 	ErrUserNotFound = fmt.Errorf("user not found")
+	ErrCacheMiss    = fmt.Errorf("cache miss")
 )
 
 type User struct {
@@ -38,6 +39,13 @@ type Repository interface {
 	Delete(ctx context.Context, userID int64) error
 }
 
+type UserCache interface {
+	Get(ctx context.Context, userID int64) (*User, error)
+	Set(ctx context.Context, user *User) error
+	Delete(ctx context.Context, userID int64) error
+}
+
 type Service struct {
-	repo Repository
+	repo  Repository
+	cache UserCache
 }

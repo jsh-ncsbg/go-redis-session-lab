@@ -10,6 +10,7 @@ import (
 
 	"github.com/redis-session-lab/internal/db"
 	"github.com/redis-session-lab/internal/session"
+	"github.com/redis-session-lab/internal/user"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -24,10 +25,12 @@ func main() {
 	fmt.Println("connected to db")
 	defer pg.Close()
 
-	var cacheDB session.SessionCache
+	var sessionCache session.SessionCache
+	var userCache user.UserCache
 	switch strings.ToLower(cfg.SessionCache) {
 	case "postgres":
-		cacheDB = &session.NoopSessionCache{}
+		sessionCache = &session.NoopSessionCache{}
+		userCache = &user.NoopUserCache{}
 	case "redis":
 		rdb := redis.NewClient(&redis.Options{
 			Addr:     cfg.RedisAddr,
@@ -41,16 +44,20 @@ func main() {
 		}
 
 		fmt.Println("redis is available")
-		cacheDB = session.NewRedisSessionCache(rdb, 5*time.Minute, cfg.RedisPrefix)
+		sessionCache = session.NewRedisSessionCache(rdb, 5*time.Minute, cfg.RedisPrefix)
+		userCache = user.NewRedisUserCache(rdb, 5*time.Minute, cfg.RedisPrefix)
 	default:
 		log.Fatalf("unsupported SESSION_CACHE value: %q", cfg.SessionCache)
 	}
 
 	sessionRepo := session.NewRepository(pg)
-	sessionService := session.NewService(cacheDB, sessionRepo)
+	sessionService := session.NewService(sessionCache, sessionRepo)
+
+	userRepo := user.NewRepository(pg)
+	userService := user.NewService(userCache, userRepo)
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /me", meHandler(sessionService))
+	mux.Handle("GET /me", meHandler(sessionService, userService))
 	if err := http.ListenAndServe(":8080", mux); err != nil {
 		log.Fatal(err)
 	}
