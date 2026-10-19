@@ -56,6 +56,23 @@ cycling through 1,000 bearer tokens. Each token is reused 100 times per pass.
 `SESSION_CACHE=postgres` uses no cache; `redis` caches sessions and users. Redis is not flushed
 between passes, and the cache hit rate was not measured.
 
+With the server running and data seeded, run this from the repo root on the load generator
+machine (Docker required). Set `BASE_URL` to the server's URL or address:
+
+```bash
+docker run --rm \
+  -e BASE_URL=http://your-server:8080 \
+  -e TOKEN_COUNT=1000 \
+  -e K6_NO_USAGE_REPORT=true \
+  -v "$PWD/bench:/bench:ro" \
+  grafana/k6:latest run \
+  --vus 25 --iterations 100000 \
+  /bench/session.js
+```
+
+Each invocation is one pass, with results printed in the terminal. Run it three times per mode,
+restarting the Go server with `SESSION_CACHE=postgres` or `SESSION_CACHE=redis` to switch modes.
+
 ## Results
 
 | Mode            | Requests/sec | Avg latency |      p95 range |        p99 range | Failures |
