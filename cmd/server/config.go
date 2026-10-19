@@ -52,7 +52,8 @@ func GetEnvString(key, fallback string) string {
 
 func GetEnvInt(key string, fallback int) int {
 	val, ok := os.LookupEnv(key)
-	if !ok {
+	val = strings.TrimSpace(val)
+	if !ok || val == "" {
 		return fallback
 	}
 	valAsInt, err := strconv.Atoi(val)
